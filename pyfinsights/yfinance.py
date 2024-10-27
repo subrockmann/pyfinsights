@@ -1,4 +1,6 @@
 import yfinance as yf
+import pandas as pd
+from typing import List, Union
 
 
 def get_dividends_date(symbol: str, verbose: bool = False):
@@ -19,11 +21,72 @@ def get_dividends_date(symbol: str, verbose: bool = False):
         # return(pays_dividends, dividend_date, ex_dividend_date, ticker)
     else:
         pays_dividends = True
-        dividend_date = ticker.calendar["Dividend Date"]
-        ex_dividend_date = ticker.calendar["Ex-Dividend Date"]
+        try:
+            dividend_date = ticker.calendar["Dividend Date"]
+        except:
+            dividend_date = None
+        try:
+            ex_dividend_date = ticker.calendar["Ex-Dividend Date"]
+        except:
+            ex_dividend_date = None
     if verbose:
         print(
             f"{symbol} - dividend date: {dividend_date} / ex-dividend date: {ex_dividend_date}"
         )
 
     return (pays_dividends, dividend_date, ex_dividend_date, ticker)
+
+
+def get_earnings_dates(symbols: Union[str, List[str]]) -> pd.DataFrame:
+    """
+    Fetches earnings dates for the given stock symbols using yfinance.
+
+    Args:
+        symbols (Union[str, List[str]]): A single stock symbol as a string or a list of stock symbols as strings.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the symbols, whether the date is confirmed,
+                      and the earnings dates (with the second date being None if there's only one date).
+
+                      The DataFrame has the following columns:
+                      - 'symbol': The stock symbol.
+                      - 'date_confirmed': A boolean indicating if the earnings date is confirmed.
+                      - 'earnings_date_1': The first earnings date.
+                      - 'earnings_date_2': The second earnings date, if available.
+    """
+    earnings = []
+    symbol_errors = []
+
+    if isinstance(symbols, str):
+        symbols = [symbols]
+
+    for i, symbol in enumerate(symbols):
+        print(f"{i} - Fetching earnings dates for {symbol}")
+
+        try:
+            ticker = yf.Ticker(symbol)
+            earnings_list = ticker.calendar["Earnings Date"]
+
+            if len(earnings_list) == 1:
+                date_confirmed = True
+                earnings.append([symbol, date_confirmed, earnings_list[0], None])
+
+            elif len(earnings_list) == 2:
+                date_confirmed = False
+                earnings.append(
+                    [symbol, date_confirmed, earnings_list[0], earnings_list[-1]]
+                )
+        except:
+            print(f"Unable to retrieve data for {symbol}")
+            symbol_errors.append(symbol)
+            date_confirmed = False
+            earnings.append([symbol, date_confirmed, None, None])
+
+    df = pd.DataFrame(
+        earnings,
+        columns=["symbol", "date_confirmed", "earnings_date_1", "earnings_date_2"],
+    )
+    df["earnings_date_1"] = pd.to_datetime(df["earnings_date_1"])
+    df["earnings_date_2"] = pd.to_datetime(df["earnings_date_2"])
+
+    return df
