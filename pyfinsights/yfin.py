@@ -1,40 +1,41 @@
+
 import yfinance as yf
 import pandas as pd
 from typing import List, Union
 
 
 def get_dividends_date(symbol: str, verbose: bool = False):
+    ticker = None
+    dividends = None
     pays_dividends = False
-    # last_dividend = 0
     dividend_date = None
     ex_dividend_date = None
 
     try:
         ticker = yf.Ticker(symbol)
         dividends = ticker.dividends
-    except:
-        print(f"Unable to retrieve data for {symbol}")
-        # break
+    except Exception as e:
+        print(f"Unable to retrieve data for {symbol}: {e}")
+        return (pays_dividends, dividend_date, ex_dividend_date, ticker)
 
-    if len(dividends) == 0:
-        pass
-        # return(pays_dividends, dividend_date, ex_dividend_date, ticker)
-    else:
+    if dividends is not None and not dividends.empty:
         pays_dividends = True
         try:
-            dividend_date = ticker.calendar["Dividend Date"]
-        except:
+            # Get the most recent dividend date
+            dividend_date = dividends.index[-1]
+        except Exception as e:
+            print(f"Error retrieving dividend date for {symbol}: {e}")
             dividend_date = None
-        try:
-            ex_dividend_date = ticker.calendar["Ex-Dividend Date"]
-        except:
-            ex_dividend_date = None
+
+        # Note: yfinance does not provide "Ex-Dividend Date" directly
+        ex_dividend_date = None  # Placeholder if needed
+
     if verbose:
         print(
             f"{symbol} - dividend date: {dividend_date} / ex-dividend date: {ex_dividend_date}"
         )
 
-    return (pays_dividends, dividend_date, ex_dividend_date, ticker)
+    return (pays_dividends, dividend_date, ex_dividend_date, ticker)   
 
 
 def get_earnings_dates(symbols: Union[str, List[str]]) -> pd.DataFrame:
