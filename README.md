@@ -13,7 +13,12 @@ To create a library for installation
 python setup.py bdist_wheel
 ```
 
-The library will be in the "dist" folder. To install the library into another project use
+The library will be in the "dist" folder. 
+```
+cd dist
+```
+
+To install the library into another project use
 
 ```
 % pip install /path/to/wheelfile.whl
