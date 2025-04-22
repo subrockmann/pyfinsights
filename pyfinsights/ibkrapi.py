@@ -13,6 +13,7 @@ contract = Contract()
 stop_price = None
 limit_price = None
 stop_loss_price = None
+action = None
 
 
 def create_contract_US_stock(symbol):
@@ -24,16 +25,76 @@ def create_contract_US_stock(symbol):
     return contract
 
 
-def buy_stock_stop_limit_with_stop_loss_order(
-    app, contract, quantity, stop_price, limit_price, stop_loss_price, tif="DAY", transmit=False
+# def buy_stock_stop_limit_with_stop_loss_order(
+#     app, contract, quantity, stop_price, limit_price, stop_loss_price, tif="DAY", transmit=False
+# ):
+#     """
+#     Function to place a stop limit buy order with an attached stop loss order.
+
+#     Parameters:
+#         app: The IBKR app instance (EClient and EWrapper combined).
+#         contract: The contract object for the stock.
+#         quantity: The number of shares to buy.
+#         stop_price: The stop price for the stop limit order.
+#         limit_price: The limit price for the stop limit order.
+#         stop_loss_price: The stop price for the stop loss order.
+#         tif: Time in Force for the main order (default: "DAY").
+#         transmit: Whether to transmit the orders immediately (default: False).
+#     """
+#     # Ensure the contract is a valid stock contract
+#     if not isinstance(contract, Contract):
+#         raise ValueError("The contract must be an instance of ibapi.contract.Contract.")
+#     if contract.secType != "STK":
+#         raise ValueError("The contract must be a stock contract (secType='STK').")
+
+#     # Generate the parent order ID
+#     parent_order_id = app.nextId()
+
+#     # Main order: Stop Limit Buy
+
+#     main_order = Order()
+#     main_order.orderId = parent_order_id  # Set the order ID
+#     main_order.orderType = "STP LMT"
+#     main_order.action = "BUY"
+#     main_order.totalQuantity = quantity
+#     main_order.lmtPrice = limit_price
+#     main_order.auxPrice = stop_price
+#     main_order.tif = tif # Time in Force (DAY, GTC, etc.
+#     main_order.transmit = False  # Do not transmit until the stop loss is attached
+
+#     # Stop Loss order
+#     stop_loss_order = Order()
+#     stop_loss_order.orderId = app.nextId()  # Generate a new order ID for the stop loss order
+#     stop_loss_order.orderType = "STP"
+#     stop_loss_order.action = "SELL"
+#     stop_loss_order.totalQuantity = quantity
+#     stop_loss_order.auxPrice = stop_loss_price
+#     stop_loss_order.tif = "GTC"  # Good Till Cancelled
+#     stop_loss_order.parentId = parent_order_id  # Link to the main order
+#     stop_loss_order.transmit = transmit  # Transmit both orders together
+
+#     return(main_order, stop_loss_order)
+
+
+def create_stock_stop_limit_with_stop_loss_order(
+    action,
+    app,
+    contract,
+    quantity,
+    stop_price,
+    limit_price,
+    stop_loss_price,
+    tif="DAY",
+    transmit=False,
 ):
     """
-    Function to place a stop limit buy order with an attached stop loss order.
+    Function to place a stop limit order with an attached stop loss order.
 
     Parameters:
+        action: The action for the order ("BUY" or "SELL").
         app: The IBKR app instance (EClient and EWrapper combined).
         contract: The contract object for the stock.
-        quantity: The number of shares to buy.
+        quantity: The number of shares to trade.
         stop_price: The stop price for the stop limit order.
         limit_price: The limit price for the stop limit order.
         stop_loss_price: The stop price for the stop loss order.
@@ -46,33 +107,37 @@ def buy_stock_stop_limit_with_stop_loss_order(
     if contract.secType != "STK":
         raise ValueError("The contract must be a stock contract (secType='STK').")
 
+    if action not in ["BUY", "SELL"]:
+        raise ValueError("The action must be either 'BUY' or 'SELL'.")
+
     # Generate the parent order ID
     parent_order_id = app.nextId()
 
-    # Main order: Stop Limit Buy
-
+    # Main order: Stop Limit
     main_order = Order()
     main_order.orderId = parent_order_id  # Set the order ID
     main_order.orderType = "STP LMT"
-    main_order.action = "BUY"
+    main_order.action = action
     main_order.totalQuantity = quantity
     main_order.lmtPrice = limit_price
     main_order.auxPrice = stop_price
-    main_order.tif = tif # Time in Force (DAY, GTC, etc.
+    main_order.tif = tif  # Time in Force (DAY, GTC, etc.)
     main_order.transmit = False  # Do not transmit until the stop loss is attached
 
     # Stop Loss order
     stop_loss_order = Order()
-    stop_loss_order.orderId = app.nextId()  # Generate a new order ID for the stop loss order       
+    stop_loss_order.orderId = (
+        app.nextId()
+    )  # Generate a new order ID for the stop loss order
     stop_loss_order.orderType = "STP"
-    stop_loss_order.action = "SELL"
+    stop_loss_order.action = "SELL" if action == "BUY" else "BUY"
     stop_loss_order.totalQuantity = quantity
     stop_loss_order.auxPrice = stop_loss_price
     stop_loss_order.tif = "GTC"  # Good Till Cancelled
     stop_loss_order.parentId = parent_order_id  # Link to the main order
     stop_loss_order.transmit = transmit  # Transmit both orders together
 
-    return(main_order, stop_loss_order)
+    return main_order, stop_loss_order
 
 
 class PlaceOrderApp(EClient, EWrapper):
@@ -134,7 +199,8 @@ class PlaceOrderApp(EClient, EWrapper):
         )
 
 
-def place_buy_US_stock_stop_limit_with_stop_loss(
+def place_US_stock_stop_limit_with_stop_loss(
+    action,
     contract=contract,
     quantity=quantity,
     stop_price=stop_price,
@@ -167,7 +233,8 @@ def place_buy_US_stock_stop_limit_with_stop_loss(
     app.reqIds(numIds=1)
 
     # Call the function, passing the app instance
-    main_order, stop_loss_order = buy_stock_stop_limit_with_stop_loss_order(
+    main_order, stop_loss_order = create_stock_stop_limit_with_stop_loss_order(
+        action,
         app,
         contract,
         quantity,
